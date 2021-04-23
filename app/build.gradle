@@ -1,0 +1,60 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 30
+    defaultConfig {
+        applicationId "com.bixolon.printer"
+        minSdkVersion 17
+        targetSdkVersion 30
+        versionCode 3
+        versionName '3.0'
+
+    }
+    buildToolsVersion = '29.0.2'
+
+    signingConfigs {
+        debug {
+            storeFile file('D:\\Documents\\Other\\WoosimPrinterService\\WoosimBTPrint\\techmeister.keystore')
+            storePassword "01e1cd"
+            keyAlias "meister"
+            keyPassword "01e1cd"
+        }
+
+        myConfig {
+            storeFile file("D:\\Documents\\Other\\WoosimPrinterService\\WoosimBTPrint\\techmeister.keystore")
+            storePassword "01e1cd"
+            keyAlias "meister"
+            keyPassword "01e1cd"
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            signingConfig signingConfigs.debug
+        }
+        release {
+            debuggable true
+            signingConfig signingConfigs.myConfig
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    androidTestImplementation('androidx.test.espresso:espresso-core:3.1.0', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+
+
+    implementation 'androidx.appcompat:appcompat:1.0.0'
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
+    implementation 'com.google.android.material:material:1.0.0'
+
+    testImplementation 'junit:junit:4.12'
+
+    implementation files('libs/bixolon_printer.jar')
+    implementation files('libs/libcommon_V1.0.9.jar')
+
+    implementation 'com.google.code.gson:gson:2.8.6'
+}
