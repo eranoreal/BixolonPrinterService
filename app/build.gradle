@@ -7,7 +7,7 @@ android {
         minSdkVersion 17
         targetSdkVersion 30
         versionCode 3
-        versionName '3.0'
+        versionName '3.8'
 
     }
     buildToolsVersion = '29.0.2'
@@ -54,7 +54,7 @@ dependencies {
     testImplementation 'junit:junit:4.12'
 
     implementation files('libs/bixolon_printer.jar')
-    implementation files('libs/libcommon_V1.0.9.jar')
+    implementation files('libs/libcommon_V1.1.1.jar')
 
     implementation 'com.google.code.gson:gson:2.8.6'
 }

@@ -128,12 +128,10 @@ public class BXLPrintService extends Service {
                     .registerTypeAdapter(Line.class, new LineDeserializer())
                     .create();
 
-            Thread thread = new Thread() {
-                public void run() {
+            new Thread(new Runnable() {
+                public void run(){
                     bixolonPrinter.beginTransactionPrint();
-
                     for (int i = 0; i < lines.size(); i++) {
-
                         Line line = gson.fromJson(lines.get(i), Line.class);
 
                         if (line.type.equals("text")) {
@@ -149,11 +147,14 @@ public class BXLPrintService extends Service {
 
                         } else if (line.type.equals("images")) {
 
-                            if (lastBitmapPath != line.value) {
+                            boolean reUsedBitmap = lastBitmapPath == line.value;
+
+                            if (!reUsedBitmap) {
                                 lastBitmap = BitmapFactory.decodeFile(line.value);
+                                lastBitmapPath = line.value;
                             }
 
-                            if (!bixolonPrinter.printImage(lastBitmap, line.textsizewidth, line.alignment, 50, 0, 0)) {
+                            if (!bixolonPrinter.printImage(lastBitmap, line.textsizewidth, line.alignment, 50, 1, 1, reUsedBitmap)) {
 
                             }
 
@@ -163,11 +164,9 @@ public class BXLPrintService extends Service {
                             }
                         }
                     }
-
                     bixolonPrinter.endTransactionPrint();
                 }
-            };
-            thread.start();
+            }).start();
         }
 
         this.printerAddress = intentPrinterAddress;

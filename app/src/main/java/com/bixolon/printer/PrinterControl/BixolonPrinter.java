@@ -168,6 +168,7 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
         try {
             if (posPrinter.getClaimed()) {
                 posPrinter.setDeviceEnabled(false);
+                posPrinter.release();
                 posPrinter.close();
             }
         } catch (JposException e) {
@@ -401,6 +402,9 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
         return ret;
     }
 
+    ByteBuffer lastImagebuffer;
+    String lastImagePath;
+
     public boolean printImage(String path, int width, int alignment, int brightness, int dither, int compress) {
         boolean ret = true;
 
@@ -417,16 +421,16 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
                 alignment = POSPrinterConst.PTR_BM_RIGHT;
             }
 
+            if (lastImagePath != path){
+                lastImagebuffer = ByteBuffer.allocate(4);
+                lastImagebuffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
+                lastImagebuffer.put((byte) brightness); // brightness
+                lastImagebuffer.put((byte) compress); // compress
+                lastImagebuffer.put((byte) dither); // dither
+                lastImagePath = path;
+            }
 
-
-            ByteBuffer buffer = ByteBuffer.allocate(4);
-            buffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
-            buffer.put((byte) brightness); // brightness
-            buffer.put((byte) compress); // compress
-            buffer.put((byte) dither); // dither
-
-            posPrinter.printBitmap(buffer.getInt(0), path, width, alignment);
-
+            posPrinter.printBitmap(lastImagebuffer.getInt(0), path, width, alignment);
 
         } catch (JposException e) {
             e.printStackTrace();
@@ -437,7 +441,8 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
         return ret;
     }
 
-    public boolean printImage(Bitmap bitmap, int width, int alignment, int brightness, int dither, int compress) {
+
+    public boolean printImage(Bitmap bitmap, int width, int alignment, int brightness, int dither, int compress, boolean reUsedBitmap) {
         boolean ret = true;
 
         try {
@@ -453,45 +458,18 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
                 alignment = POSPrinterConst.PTR_BM_RIGHT;
             }
 
-            ByteBuffer buffer = ByteBuffer.allocate(4);
-            buffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
-            buffer.put((byte) brightness); // brightness
-            buffer.put((byte) compress); // compress
-            buffer.put((byte) dither); // dither
-
-            posPrinter.printBitmap(buffer.getInt(0), bitmap, width, alignment);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            ret = false;
-        }
-
-        return ret;
-    }
-
-    public boolean printSvg(String path, int width, int alignment, int brightness, int Rotate) {
-        boolean ret = true;
-
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
+            if (!reUsedBitmap) {
+                lastImagebuffer = ByteBuffer.allocate(4);
+                lastImagebuffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
+                lastImagebuffer.put((byte) brightness); // brightness
+                lastImagebuffer.put((byte) compress); // compress
+                lastImagebuffer.put((byte) dither); // dither
             }
 
-            if (alignment == ALIGNMENT_LEFT) {
-                alignment = POSPrinterConst.PTR_BM_LEFT;
-            } else if (alignment == ALIGNMENT_CENTER) {
-                alignment = POSPrinterConst.PTR_BM_CENTER;
-            } else {
-                alignment = POSPrinterConst.PTR_BM_RIGHT;
-            }
+            posPrinter.printBitmap(lastImagebuffer.getInt(0), bitmap, width, alignment);
 
-            ByteBuffer buffer = ByteBuffer.allocate(4);
-            buffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
-            buffer.put((byte) brightness); // brightness
-            buffer.put((byte) 0x01); // compress
-            buffer.put((byte) 0x00); // Reserve
 
-            posPrinter.printSvg(buffer.getInt(0), path, width, alignment, Rotate);
+
         } catch (JposException e) {
             e.printStackTrace();
 
