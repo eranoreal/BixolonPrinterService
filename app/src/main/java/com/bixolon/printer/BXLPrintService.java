@@ -53,6 +53,8 @@ public class BXLPrintService extends Service {
             startForeground(1, new Notification());
 
         Toast.makeText(this, "Printer service running.", Toast.LENGTH_LONG).show();
+
+
     }
 
     static BixolonPrinter bixolonPrinter = null;
@@ -61,13 +63,15 @@ public class BXLPrintService extends Service {
     static String intentPrinterAddress= "", intentPrinterModel= "";
 
     static Bitmap lastBitmap;
-    static String lastBitmapPath;
+    static String lastBitmapPath = "";
+    static boolean printerBusy;
 
     private Boolean openPrinter(String printerModel, String printerAddress){
 
         bixolonPrinter =  new BixolonPrinter(this);
 
-        return bixolonPrinter.printerOpen(BXLConfigLoader.DEVICE_BUS_BLUETOOTH, printerModel, printerAddress,true);
+        return bixolonPrinter.printerOpen(BXLConfigLoader.DEVICE_BUS_BLUETOOTH, printerModel,
+                                                        printerAddress,true);
     }
 
     private void closePrinter(){
@@ -108,72 +112,126 @@ public class BXLPrintService extends Service {
             }
         }
         else {
+
+            final List<String> lines = new ArrayList<>(intent.getStringArrayListExtra("lines"));
+
+            Thread thread = new Thread(new Runnable() {
+                public void run()
+                {
+                    printerBusy = true;
+                    final Gson gson = new GsonBuilder()
+                            .registerTypeAdapter(Line.class, new LineDeserializer())
+                            .create();
+
+                    if(Build.VERSION.SDK_INT >= 30)
+                    {
+                        for (int i = 0; i < lines.size(); i++) {
+                            print(gson.fromJson(lines.get(i), Line.class));
+
+                            try {
+                                Thread.sleep(15);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                    else {
+
+                        bixolonPrinter.beginTransactionPrint();
+                        for (int i = 0; i < lines.size(); i++) {
+                            print(gson.fromJson(lines.get(i), Line.class));
+                        }
+                        bixolonPrinter.endTransactionPrint();
+
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    printerBusy =false;
+
+
+                }
+            });
+
             if (bixolonPrinter == null) {
                 if (!openPrinter(intentPrinterModel, intentPrinterAddress)) {
                     Toast.makeText(this, "Printer not found.", Toast.LENGTH_LONG).show();
                     bixolonPrinter = null;
                 }
+                else {
+                    if(!printerBusy) {
+                        thread.start();
+                    }
+                    else {
+                        Toast.makeText(this, "Printer still printing, please wait.", Toast.LENGTH_LONG).show();
+                    }
+                }
             } else {
                 if (!printerAddress.equals("") && !printerAddress.equals(intentPrinterAddress)) {
                     closePrinter();
+
                     if (!openPrinter(intentPrinterModel, intentPrinterAddress)) {
                         Toast.makeText(this, "Printer not found.", Toast.LENGTH_LONG).show();
                     }
-                }
-            }
-
-            final List<String> lines = new ArrayList<>(intent.getStringArrayListExtra("lines"));
-
-            final Gson gson = new GsonBuilder()
-                    .registerTypeAdapter(Line.class, new LineDeserializer())
-                    .create();
-
-            new Thread(new Runnable() {
-                public void run(){
-                    bixolonPrinter.beginTransactionPrint();
-                    for (int i = 0; i < lines.size(); i++) {
-                        Line line = gson.fromJson(lines.get(i), Line.class);
-
-                        if (line.type.equals("text")) {
-                            if (line.value.isEmpty()) {
-                                if (!bixolonPrinter.printText("\n", line.alignment, line.attribute, line.textsizewidth)) {
-
-                                }
-                            } else {
-                                if (!bixolonPrinter.printText(line.value, line.alignment, line.attribute, line.textsizewidth)) {
-
-                                }
-                            }
-
-                        } else if (line.type.equals("images")) {
-
-                            boolean reUsedBitmap = lastBitmapPath == line.value;
-
-                            if (!reUsedBitmap) {
-                                lastBitmap = BitmapFactory.decodeFile(line.value);
-                                lastBitmapPath = line.value;
-                            }
-
-                            if (!bixolonPrinter.printImage(lastBitmap, line.textsizewidth, line.alignment, 50, 1, 1, reUsedBitmap)) {
-
-                            }
-
-                        } else if (line.type.equals("barcodes")) {
-                            if (!bixolonPrinter.printBarcode(line.value, line.symbology, line.textsizewidth, line.textsizeheight, line.alignment, line.textposition)) {
-
-                            }
+                    else {
+                        if(!printerBusy) {
+                            thread.start();
+                        }
+                        else {
+                            Toast.makeText(this, "Printer still printing, please wait.", Toast.LENGTH_LONG).show();
                         }
                     }
-                    bixolonPrinter.endTransactionPrint();
                 }
-            }).start();
+                else{
+                    if(!printerBusy) {
+                        thread.start();
+                    }
+                    else {
+                        Toast.makeText(this, "Printer still printing, please wait.", Toast.LENGTH_LONG).show();
+                    }
+
+                }
+            }
         }
 
-        this.printerAddress = intentPrinterAddress;
-        this.printerModel = intentPrinterModel;
+        printerAddress = intentPrinterAddress;
+        printerModel = intentPrinterModel;
 
         return START_NOT_STICKY;
 
+    }
+
+    public void print(Line line){
+
+        switch (line.type) {
+            case "text":
+                if (line.value.isEmpty()) {
+                    bixolonPrinter.printText("\n", line.alignment, line.attribute, line.textsizewidth);
+                } else {
+                    bixolonPrinter.printText(line.value, line.alignment, line.attribute, line.textsizewidth);
+                }
+
+                break;
+            case "images":
+
+                boolean reUsedBitmap = lastBitmapPath.equals(line.value);
+
+                if (!reUsedBitmap) {
+                    lastBitmap = BitmapFactory.decodeFile(line.value);
+                    lastBitmapPath = line.value;
+                }
+
+                bixolonPrinter.printImage(lastBitmap, line.textsizewidth, line.alignment, 50, 1, 1, reUsedBitmap);
+
+                break;
+            case "barcodes":
+                bixolonPrinter.printBarcode(line.value, line.symbology, line.textsizewidth, line.textsizeheight, line.alignment, line.textposition);
+
+                break;
+        }
     }
 
     @Override
@@ -189,12 +247,12 @@ public class BXLPrintService extends Service {
     private void startMyOwnForeground(){
         String NOTIFICATION_CHANNEL_ID = "com.bixolon.printer";
         String channelName = "Bixolon Printer Service is running.";
-        NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
-        chan.setLightColor(Color.BLUE);
-        chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+        NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
+        channel.setLightColor(Color.BLUE);
+        channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         assert manager != null;
-        manager.createNotificationChannel(chan);
+        manager.createNotificationChannel(channel);
 
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
         Notification notification = notificationBuilder.setOngoing(true)

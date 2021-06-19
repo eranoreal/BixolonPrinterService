@@ -144,7 +144,7 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
                 posPrinter.claim(5000 * 2);
                 posPrinter.setDeviceEnabled(true);
                 posPrinter.setAsyncMode(isAsyncMode);
-
+                return true;
             } catch (JposException e) {
                 e.printStackTrace();
                 try {
@@ -152,16 +152,12 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
                 } catch (JposException e1) {
                     e1.printStackTrace();
                 }
-
                 return false;
             }
         } else {
             return false;
         }
 
-
-
-        return true;
     }
 
     public boolean printerClose() {
@@ -468,8 +464,6 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
 
             posPrinter.printBitmap(lastImagebuffer.getInt(0), bitmap, width, alignment);
 
-
-
         } catch (JposException e) {
             e.printStackTrace();
 
@@ -640,11 +634,10 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
             if (!posPrinter.getDeviceEnabled()) {
                 return false;
             }
-
             posPrinter.transactionPrint(POSPrinterConst.PTR_S_RECEIPT, POSPrinterConst.PTR_TP_TRANSACTION);
+
         } catch (JposException e) {
             e.printStackTrace();
-
             return false;
         }
 
