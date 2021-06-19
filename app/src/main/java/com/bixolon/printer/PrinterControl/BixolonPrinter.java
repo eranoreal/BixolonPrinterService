@@ -398,8 +398,6 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
         return ret;
     }
 
-    ByteBuffer lastImagebuffer;
-    String lastImagePath;
 
     public boolean printImage(String path, int width, int alignment, int brightness, int dither, int compress) {
         boolean ret = true;
@@ -417,16 +415,13 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
                 alignment = POSPrinterConst.PTR_BM_RIGHT;
             }
 
-            if (lastImagePath != path){
-                lastImagebuffer = ByteBuffer.allocate(4);
-                lastImagebuffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
-                lastImagebuffer.put((byte) brightness); // brightness
-                lastImagebuffer.put((byte) compress); // compress
-                lastImagebuffer.put((byte) dither); // dither
-                lastImagePath = path;
-            }
+            ByteBuffer buffer = ByteBuffer.allocate(4);
+            buffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
+            buffer.put((byte) brightness); // brightness
+            buffer.put((byte) compress); // compress
+            buffer.put((byte) dither); // dither
 
-            posPrinter.printBitmap(lastImagebuffer.getInt(0), path, width, alignment);
+            posPrinter.printBitmap(buffer.getInt(0), path, width, alignment);
 
         } catch (JposException e) {
             e.printStackTrace();
@@ -438,7 +433,7 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
     }
 
 
-    public boolean printImage(Bitmap bitmap, int width, int alignment, int brightness, int dither, int compress, boolean reUsedBitmap) {
+    public boolean printImage(Bitmap bitmap, int width, int alignment, int brightness, int dither, int compress) {
         boolean ret = true;
 
         try {
@@ -454,15 +449,13 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
                 alignment = POSPrinterConst.PTR_BM_RIGHT;
             }
 
-            if (!reUsedBitmap) {
-                lastImagebuffer = ByteBuffer.allocate(4);
-                lastImagebuffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
-                lastImagebuffer.put((byte) brightness); // brightness
-                lastImagebuffer.put((byte) compress); // compress
-                lastImagebuffer.put((byte) dither); // dither
-            }
+            ByteBuffer buffer = ByteBuffer.allocate(4);
+            buffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
+            buffer.put((byte) brightness); // brightness
+            buffer.put((byte) compress); // compress
+            buffer.put((byte) dither); // dither
 
-            posPrinter.printBitmap(lastImagebuffer.getInt(0), bitmap, width, alignment);
+            posPrinter.printBitmap(buffer.getInt(0), bitmap, width, alignment);
 
         } catch (JposException e) {
             e.printStackTrace();

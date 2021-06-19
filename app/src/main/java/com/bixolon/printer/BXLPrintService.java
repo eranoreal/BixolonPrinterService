@@ -65,10 +65,12 @@ public class BXLPrintService extends Service {
     static Bitmap lastBitmap;
     static String lastBitmapPath = "";
     static boolean printerBusy;
+    static  List<ArrayList<String>> lineQue;
 
     private Boolean openPrinter(String printerModel, String printerAddress){
 
         bixolonPrinter =  new BixolonPrinter(this);
+        lineQue = new ArrayList<ArrayList<String>>();
 
         return bixolonPrinter.printerOpen(BXLConfigLoader.DEVICE_BUS_BLUETOOTH, printerModel,
                                                         printerAddress,true);
@@ -81,6 +83,8 @@ public class BXLPrintService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+
+
 
         if(intent.getBooleanExtra("startServiceOnly", false))
         {
@@ -96,8 +100,17 @@ public class BXLPrintService extends Service {
         }
 
         boolean forceConnect = intent.getBooleanExtra("forceConnect", false);
+        boolean forceDisconnect = intent.getBooleanExtra("forceDisconnect", false);
+
         intentPrinterAddress = intent.getStringExtra("printerAddress");
         intentPrinterModel = intent.getStringExtra("printerModel");
+
+        if(!forceConnect && forceDisconnect){
+            if (bixolonPrinter != null) {
+                closePrinter();
+            }
+            return START_NOT_STICKY;
+        }
 
         if (forceConnect) {
             if (bixolonPrinter != null) {
@@ -224,7 +237,7 @@ public class BXLPrintService extends Service {
                     lastBitmapPath = line.value;
                 }
 
-                bixolonPrinter.printImage(lastBitmap, line.textsizewidth, line.alignment, 50, 1, 1, reUsedBitmap);
+                bixolonPrinter.printImage(lastBitmap, line.textsizewidth, line.alignment, 50, 1, 1);
 
                 break;
             case "barcodes":
