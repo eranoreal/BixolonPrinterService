@@ -14,7 +14,8 @@ public class LineDeserializer  implements JsonDeserializer<Line>
     public Line deserialize(JsonElement json, Type typeOfT,
                                 JsonDeserializationContext context) throws JsonParseException
     {
-        JsonObject jsonObject = json.getAsJsonObject();
+        return new Line();
+        /* JsonObject jsonObject = json.getAsJsonObject();
 
         return new Line (
                 jsonObject.get("Type").getAsString(),
@@ -24,6 +25,6 @@ public class LineDeserializer  implements JsonDeserializer<Line>
                 jsonObject.get("TextSizeWidth").getAsInt(),
                 jsonObject.get("Attribute").getAsInt(),
                 jsonObject.get("Symbology").getAsInt(),
-                jsonObject.get("TextPosition").getAsInt());
+                jsonObject.get("TextPosition").getAsInt());*/
     }
 }

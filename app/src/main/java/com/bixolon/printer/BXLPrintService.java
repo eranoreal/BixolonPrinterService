@@ -9,9 +9,9 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.IBinder;
-import android.os.StrictMode;
 import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
@@ -24,28 +24,30 @@ import com.google.gson.GsonBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class BXLPrintService extends Service {
-    public BXLPrintService() {
+    private static BixolonPrinter bixolonPrinter = null;
+    private static String printerAddress = "";
+    private static String printerModel = "";
+    private static String intentPrinterAddress = "";
+    private static String intentPrinterModel = "";
+    private static Bitmap lastBitmap;
+    private static String lastBitmapPath = "";
+    private static boolean printerBusy;
 
+    public BXLPrintService() {
     }
 
     @Override
     public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
-        return  null;
+        return null;
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
-
-        if(Build.VERSION.SDK_INT >= 24)
-        {
-            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-            StrictMode.setThreadPolicy(policy);
-        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             startMyOwnForeground();
@@ -53,159 +55,87 @@ public class BXLPrintService extends Service {
             startForeground(1, new Notification());
 
         Toast.makeText(this, "Printer service running.", Toast.LENGTH_LONG).show();
-
-
     }
 
-    static BixolonPrinter bixolonPrinter = null;
+    private Boolean openPrinter(String printerModel, String printerAddress) {
 
-    static String printerAddress = "", printerModel = "";
-    static String intentPrinterAddress= "", intentPrinterModel= "";
+        if(bixolonPrinter != null)
+            return true;
 
-    static Bitmap lastBitmap;
-    static String lastBitmapPath = "";
-    static boolean printerBusy;
-    static  List<ArrayList<String>> lineQue;
-
-    private Boolean openPrinter(String printerModel, String printerAddress){
-
-        bixolonPrinter =  new BixolonPrinter(this);
-        lineQue = new ArrayList<ArrayList<String>>();
-
-        return bixolonPrinter.printerOpen(BXLConfigLoader.DEVICE_BUS_BLUETOOTH, printerModel,
-                                                        printerAddress,true);
+        bixolonPrinter = new BixolonPrinter(this);
+        return bixolonPrinter.printerOpen(BXLConfigLoader.DEVICE_BUS_BLUETOOTH, printerModel, printerAddress, true);
     }
 
-    private void closePrinter(){
-        bixolonPrinter.printerClose();
-        bixolonPrinter = null;
+    private void closePrinter() {
+        if (bixolonPrinter != null) {
+            bixolonPrinter.printerClose();
+            bixolonPrinter = null;
+        }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
-
-
-        if(intent.getBooleanExtra("startServiceOnly", false))
-        {
-            if(printerAddress == null || printerAddress.equals("") || !openPrinter(printerModel, printerAddress)){
+        if (intent.getBooleanExtra("startServiceOnly", false)) {
+            if (printerAddress == null || printerAddress.isEmpty() || !openPrinter(printerModel, printerAddress)) {
                 Toast.makeText(this, "Waiting for printer connection.", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "Currently connected to " + printerModel + " (" + printerAddress + ")", Toast.LENGTH_LONG).show();
             }
-            else{
-                Toast.makeText(this, "Currently connected to ." + printerModel +
-                        "("+ printerAddress + ")", Toast.LENGTH_LONG).show();
-            }
-
             return START_NOT_STICKY;
         }
 
         boolean forceConnect = intent.getBooleanExtra("forceConnect", false);
         boolean forceDisconnect = intent.getBooleanExtra("forceDisconnect", false);
-
         intentPrinterAddress = intent.getStringExtra("printerAddress");
         intentPrinterModel = intent.getStringExtra("printerModel");
 
-        if(!forceConnect && forceDisconnect){
-            if (bixolonPrinter != null) {
-                closePrinter();
-            }
-            return START_NOT_STICKY;
+        if (forceDisconnect){
+            closePrinter();
+            Toast.makeText(this, "Printer disconnected.", Toast.LENGTH_LONG).show();
         }
+        else if (forceConnect) {
 
-        if (forceConnect) {
-            if (bixolonPrinter != null) {
-                closePrinter();
-            }
-            if(!openPrinter(intentPrinterModel, intentPrinterAddress)) {
+            closePrinter();
+
+            if (!openPrinter(intentPrinterModel, intentPrinterAddress)) {
                 Toast.makeText(this, "Printer not found.", Toast.LENGTH_LONG).show();
                 closePrinter();
-            }
-            else {
+            } else {
                 Toast.makeText(this, "Printer connected successfully.", Toast.LENGTH_LONG).show();
             }
-        }
-        else {
-
+        } else {
             final List<String> lines = new ArrayList<>(intent.getStringArrayListExtra("lines"));
-
-            Thread thread = new Thread(new Runnable() {
-                public void run()
-                {
-                    printerBusy = true;
-                    final Gson gson = new GsonBuilder()
-                            .registerTypeAdapter(Line.class, new LineDeserializer())
-                            .create();
-
-                    if(Build.VERSION.SDK_INT >= 30)
-                    {
-                        for (int i = 0; i < lines.size(); i++) {
-                            print(gson.fromJson(lines.get(i), Line.class));
-
-                            try {
-                                Thread.sleep(15);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                    else {
-
-                        bixolonPrinter.beginTransactionPrint();
-                        for (int i = 0; i < lines.size(); i++) {
-                            print(gson.fromJson(lines.get(i), Line.class));
-                        }
-                        bixolonPrinter.endTransactionPrint();
-
-                        try {
-                            Thread.sleep(500);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    printerBusy =false;
-
-
-                }
-            });
 
             if (bixolonPrinter == null) {
                 if (!openPrinter(intentPrinterModel, intentPrinterAddress)) {
                     Toast.makeText(this, "Printer not found.", Toast.LENGTH_LONG).show();
                     bixolonPrinter = null;
-                }
-                else {
-                    if(!printerBusy) {
-                        thread.start();
-                    }
-                    else {
-                        Toast.makeText(this, "Printer still printing, please wait.", Toast.LENGTH_LONG).show();
+                } else {
+                    if (!printerBusy) {
+                        printLines(lines);
+                    } else {
+                        Toast.makeText(this, "Printer is busy.", Toast.LENGTH_LONG).show();
                     }
                 }
             } else {
-                if (!printerAddress.equals("") && !printerAddress.equals(intentPrinterAddress)) {
+                if (!printerAddress.isEmpty() && !printerAddress.equals(intentPrinterAddress)) {
                     closePrinter();
 
                     if (!openPrinter(intentPrinterModel, intentPrinterAddress)) {
                         Toast.makeText(this, "Printer not found.", Toast.LENGTH_LONG).show();
-                    }
-                    else {
-                        if(!printerBusy) {
-                            thread.start();
-                        }
-                        else {
-                            Toast.makeText(this, "Printer still printing, please wait.", Toast.LENGTH_LONG).show();
+                    } else {
+                        if (!printerBusy) {
+                            printLines(lines);
+                        } else {
+                            Toast.makeText(this, "Printer is busy.", Toast.LENGTH_LONG).show();
                         }
                     }
-                }
-                else{
-                    if(!printerBusy) {
-                        thread.start();
+                } else {
+                    if (!printerBusy) {
+                        printLines(lines);
+                    } else {
+                        Toast.makeText(this, "Printer is busy.", Toast.LENGTH_LONG).show();
                     }
-                    else {
-                        Toast.makeText(this, "Printer still printing, please wait.", Toast.LENGTH_LONG).show();
-                    }
-
                 }
             }
         }
@@ -214,35 +144,56 @@ public class BXLPrintService extends Service {
         printerModel = intentPrinterModel;
 
         return START_NOT_STICKY;
-
     }
 
-    public void print(Line line){
+    private void printLines(List<String> lines) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(new LongOperation(lines));
+    }
 
-        switch (line.type) {
+    private final class LongOperation implements Runnable {
+        private List<String> lines;
+        LongOperation(List<String> lines) {
+            this.lines = lines;
+        }
+
+        @Override
+        public void run() {
+            printerBusy = true;
+            final Gson gson = new GsonBuilder()
+                    .registerTypeAdapter(Line.class, new LineDeserializer())
+                    .create();
+
+            bixolonPrinter.beginTransactionPrint();
+
+            for (String lineJson : lines) {
+                Line line = gson.fromJson(lineJson, Line.class);
+                print(line);
+            }
+
+            bixolonPrinter.endTransactionPrint();
+            printerBusy = false;
+        }
+    }
+
+    public void print(Line line) {
+        switch (line.Type) {
             case "text":
-                if (line.value.isEmpty()) {
-                    bixolonPrinter.printText("\n", line.alignment, line.attribute, line.textsizewidth);
-                } else {
-                    bixolonPrinter.printText(line.value, line.alignment, line.attribute, line.textsizewidth);
-                }
-
+                String value = line.Value.isEmpty() ? "\n" : line.Value;
+                bixolonPrinter.printText(value, line.Alignment, line.Attribute, line.TextSizeWidth);
                 break;
             case "images":
-
-                boolean reUsedBitmap = lastBitmapPath.equals(line.value);
+                boolean reUsedBitmap = lastBitmapPath.equals(line.Value);
 
                 if (!reUsedBitmap) {
-                    lastBitmap = BitmapFactory.decodeFile(line.value);
-                    lastBitmapPath = line.value;
+                    lastBitmap = BitmapFactory.decodeFile(line.Value);
+                    lastBitmapPath = line.Value;
                 }
 
-                bixolonPrinter.printImage(lastBitmap, line.textsizewidth, line.alignment, 50, 1, 1);
-
+                bixolonPrinter.printImage(lastBitmap, line.TextSizeWidth, line.Alignment, 50, 1, 1);
                 break;
             case "barcodes":
-                bixolonPrinter.printBarcode(line.value, line.symbology, line.textsizewidth, line.textsizeheight, line.alignment, line.textposition);
-
+                bixolonPrinter.printBarcode(line.Value, line.Symbology, line.TextSizeWidth, line.TextSizeHeight, line.Alignment, line.TextPosition);
                 break;
         }
     }
@@ -250,16 +201,14 @@ public class BXLPrintService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        closePrinter();
         Toast.makeText(this, "Printer service stopped.", Toast.LENGTH_LONG).show();
-        //stopSelf();
-        //stopping the player when service is destroyed
-
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
-    private void startMyOwnForeground(){
-        String NOTIFICATION_CHANNEL_ID = "com.bixolon.printer";
-        String channelName = "Bixolon Printer Service is running.";
+    private void startMyOwnForeground() {
+        String NOTIFICATION_CHANNEL_ID = getString(R.string.packageName);
+        String channelName = getString(R.string.bixolonServiceRunning);
         NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
         channel.setLightColor(Color.BLUE);
         channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
@@ -269,12 +218,10 @@ public class BXLPrintService extends Service {
 
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
         Notification notification = notificationBuilder.setOngoing(true)
-                .setContentTitle("Bixolon Printer Service is running in background")
+                .setContentTitle(getString(R.string.bixolonServiceRunning))
                 .setPriority(NotificationManager.IMPORTANCE_MIN)
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .build();
         startForeground(2, notification);
     }
-
-
 }

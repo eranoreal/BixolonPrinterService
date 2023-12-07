@@ -2,23 +2,14 @@ package com.bixolon.printer.PrinterControl;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.widget.Toast;
 
+import com.bxl.config.editor.BXLConfigLoader;
 
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 
-import jpos.CashDrawer;
-import jpos.JposConst;
 import jpos.JposException;
-import jpos.LocalSmartCardRW;
-import jpos.MSR;
-import jpos.MSRConst;
 import jpos.POSPrinter;
 import jpos.POSPrinterConst;
-import jpos.SmartCardRW;
-import jpos.SmartCardRWConst;
 import jpos.config.JposEntry;
 import jpos.events.DataEvent;
 import jpos.events.DataListener;
@@ -30,8 +21,6 @@ import jpos.events.OutputCompleteEvent;
 import jpos.events.OutputCompleteListener;
 import jpos.events.StatusUpdateEvent;
 import jpos.events.StatusUpdateListener;
-
-import com.bxl.config.editor.BXLConfigLoader;
 
 public class BixolonPrinter implements ErrorListener, OutputCompleteListener, StatusUpdateListener, DirectIOListener, DataListener {
     // ------------------- alignment ------------------- //
@@ -123,10 +112,6 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
         this.context = context;
 
         posPrinter = new POSPrinter(this.context);
-        posPrinter.addStatusUpdateListener(this);
-        posPrinter.addErrorListener(this);
-        posPrinter.addOutputCompleteListener(this);
-        posPrinter.addDirectIOListener(this);
 
         bxlConfigLoader = new BXLConfigLoader(this.context);
         try {
@@ -139,25 +124,30 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
 
     public boolean printerOpen(int portType, String logicalName, String address, boolean isAsyncMode) {
         if (setTargetDevice(portType, logicalName, BXLConfigLoader.DEVICE_CATEGORY_POS_PRINTER, address)) {
-            try {
-                posPrinter.open(logicalName);
-                posPrinter.claim(5000 * 2);
-                posPrinter.setDeviceEnabled(true);
-                posPrinter.setAsyncMode(isAsyncMode);
-                return true;
-            } catch (JposException e) {
-                e.printStackTrace();
-                try {
-                    posPrinter.close();
-                } catch (JposException e1) {
-                    e1.printStackTrace();
-                }
-                return false;
+            int retry = 1;
+            if (portType == BXLConfigLoader.DEVICE_BUS_BLUETOOTH_LE) {
+                retry = 5;
             }
-        } else {
-            return false;
-        }
 
+            for (int i = 0; i < retry; i++) {
+                try {
+                    posPrinter.open(logicalName);
+                    posPrinter.claim(5000 * 2);
+                    posPrinter.setDeviceEnabled(true);
+                    posPrinter.setAsyncMode(isAsyncMode);
+
+                    return true;
+                } catch (JposException e) {
+                    e.printStackTrace();
+                    try {
+                        posPrinter.close();
+                    } catch (JposException e1) {
+                        e1.printStackTrace();
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     public boolean printerClose() {
@@ -179,7 +169,8 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
             for (Object entry : bxlConfigLoader.getEntries()) {
                 JposEntry jposEntry = (JposEntry) entry;
                 if (jposEntry.getLogicalName().equals(logicalName)) {
-                    bxlConfigLoader.removeEntry(jposEntry.getLogicalName());
+                    bxlConfigLoader.removeEntry(logicalName);
+                    break;
                 }
             }
 
@@ -191,7 +182,6 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
 
             return false;
         }
-
         return true;
     }
 
@@ -206,12 +196,16 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
             productName = BXLConfigLoader.PRODUCT_NAME_SPP_R215;
         } else if ((name.equals("SPP-R220"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SPP_R220;
+        } else if ((name.equals("SPP-C200"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SPP_C200;
         } else if ((name.equals("SPP-R300"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SPP_R300;
         } else if ((name.equals("SPP-R310"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SPP_R310;
         } else if ((name.equals("SPP-R318"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SPP_R318;
+        } else if ((name.equals("SPP-C300"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SPP_C300;
         } else if ((name.equals("SPP-R400"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SPP_R400;
         } else if ((name.equals("SPP-R410"))) {
@@ -220,20 +214,34 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
             productName = BXLConfigLoader.PRODUCT_NAME_SPP_R418;
         } else if ((name.equals("SPP-100II"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SPP_100II;
+        } else if ((name.equals("SRP-350IIOBE"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_350IIOBE;
         } else if ((name.equals("SRP-350III"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_350III;
         } else if ((name.equals("SRP-352III"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_352III;
+        } else if ((name.equals("SRP-350V"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_350V;
+        } else if ((name.equals("SRP-352V"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_352V;
         } else if ((name.equals("SRP-350plusIII"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_350PLUSIII;
         } else if ((name.equals("SRP-352plusIII"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_352PLUSIII;
+        } else if ((name.equals("SRP-350plusV"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_350PLUSV;
+        } else if ((name.equals("SRP-352plusV"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_352PLUSV;
         } else if ((name.equals("SRP-380"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_380;
         } else if ((name.equals("SRP-382"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_382;
         } else if ((name.equals("SRP-383"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_383;
+        } else if ((name.equals("SRP-380II"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_380II;
+        } else if ((name.equals("SRP-382II"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_382II;
         } else if ((name.equals("SRP-340II"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_340II;
         } else if ((name.equals("SRP-342II"))) {
@@ -252,10 +260,18 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_E300;
         } else if ((name.equals("SRP-E302"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_E302;
+        } else if ((name.equals("SRP-B300"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_B300;
         } else if ((name.equals("SRP-330II"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_330II;
         } else if ((name.equals("SRP-332II"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_332II;
+        } else if ((name.equals("SRP-330III"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_330III;
+        } else if ((name.equals("SRP-332III"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_332III;
+        } else if ((name.equals("SRP-S200"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SRP_S200;
         } else if ((name.equals("SRP-S300"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_S300;
         } else if ((name.equals("SRP-S320"))) {
@@ -274,16 +290,22 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_F313II;
         } else if ((name.equals("SRP-275III"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SRP_275III;
-//        } else if ((name.equals("BK3-2"))) {
-//            productName = BXLConfigLoader.PRODUCT_NAME_BK3_2;
+        } else if ((name.equals("BK3-2"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_BK3_2;
         } else if ((name.equals("BK3-3"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_BK3_3;
+        } else if ((name.equals("BK5-3"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_BK5_3;
+        } else if ((name.equals("SMB6350"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_SMB6350;
         } else if ((name.equals("SLP X-Series"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SLP_X_SERIES;
         } else if ((name.equals("SLP-DX420"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SLP_DX420;
         } else if ((name.equals("SPP-L410II"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_SPP_L410II;
+        } else if ((name.equals("XM7-40"))) {
+            productName = BXLConfigLoader.PRODUCT_NAME_XM7_40;
         } else if ((name.equals("MSR"))) {
             productName = BXLConfigLoader.PRODUCT_NAME_MSR;
         } else if ((name.equals("CashDrawer"))) {
@@ -353,7 +375,7 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
                     strOption += EscapeSequence.getString(25);
                     break;
                 case 2:
-                    strOption += EscapeSequence.getString(17);
+                    strOption += EscapeSequence.getString(15);
                     strOption += EscapeSequence.getString(26);
                     break;
                 case 3:
@@ -389,7 +411,6 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
             posPrinter.printNormal(POSPrinterConst.PTR_S_RECEIPT, strOption + data);
         } catch (JposException e) {
             // TODO Auto-generated catch block
-
             e.printStackTrace();
 
             ret = false;
@@ -415,13 +436,13 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
                 alignment = POSPrinterConst.PTR_BM_RIGHT;
             }
 
-            ByteBuffer buffer = ByteBuffer.allocate(4);
-            buffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
-            buffer.put((byte) brightness); // brightness
-            buffer.put((byte) compress); // compress
-            buffer.put((byte) dither); // dither
+            ByteBuffer byteBuffer = ByteBuffer.allocate(4);
+            byteBuffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
+            byteBuffer.put((byte) brightness); // brightness
+            byteBuffer.put((byte) compress); // compress
+            byteBuffer.put((byte) dither); // dither
 
-            posPrinter.printBitmap(buffer.getInt(0), path, width, alignment);
+            posPrinter.printBitmap(byteBuffer.getInt(0), path, width, alignment);
 
         } catch (JposException e) {
             e.printStackTrace();
@@ -449,13 +470,13 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
                 alignment = POSPrinterConst.PTR_BM_RIGHT;
             }
 
-            ByteBuffer buffer = ByteBuffer.allocate(4);
-            buffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
-            buffer.put((byte) brightness); // brightness
-            buffer.put((byte) compress); // compress
-            buffer.put((byte) dither); // dither
+            ByteBuffer byteBuffer = ByteBuffer.allocate(4);
+            byteBuffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
+            byteBuffer.put((byte) brightness); // brightness
+            byteBuffer.put((byte) compress); // compress
+            byteBuffer.put((byte) dither); // dither
 
-            posPrinter.printBitmap(buffer.getInt(0), bitmap, width, alignment);
+            posPrinter.printBitmap(byteBuffer.getInt(0), bitmap, width, alignment);
 
         } catch (JposException e) {
             e.printStackTrace();
@@ -522,106 +543,6 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
         return width;
     }
 
-    public boolean startPageMode(int xPos, int yPos, int width, int height, int direction) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            // "x,y,w,h"
-            String area = xPos + "," + yPos + "," + width + "," + height;
-            posPrinter.setPageModePrintArea(area);
-
-            // LEFT_TO_RIGHT = 1;
-            // BOTTOM_TO_TOP = 2;
-            // RIGHT_TO_LEFT = 3;
-            // TOP_TO_BOTTOM = 4;
-            posPrinter.setPageModePrintDirection(direction);
-            posPrinter.pageModePrint(POSPrinterConst.PTR_PM_PAGE_MODE);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean setPageModePosition(int horizontal, int vertical) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.setPageModeHorizontalPosition(horizontal);
-            posPrinter.setPageModeVerticalPosition(vertical);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean endPageMode(boolean isLabelMode) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.pageModePrint(POSPrinterConst.PTR_PM_NORMAL);
-            if (isLabelMode) {
-                formFeed();
-            }
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean cutPaper() {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            String cutPaper = EscapeSequence.ESCAPE_CHARACTERS + String.format("%dfP", 100);  // Feed Full Cut
-//            String cutPaper = EscapeSequence.ESCAPE_CHARACTERS + String.format("%dfP", 90); // Feed Partial Cut
-            posPrinter.printNormal(POSPrinterConst.PTR_S_RECEIPT, cutPaper);    // Execute Feed cut
-
-            // posPrinter.cutPaper(90);    // Normal Partial Cut
-            //posPrinter.cutPaper(100);   // Normal Full Cut
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-
-    public boolean formFeed() {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            // Form feed
-            posPrinter.markFeed(0);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
     public boolean beginTransactionPrint() {
         try {
             if (!posPrinter.getDeviceEnabled()) {
@@ -653,286 +574,9 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
         return true;
     }
 
-    public boolean defineNvImage(String path, int code, int width, int brightness) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-            ByteBuffer buffer = ByteBuffer.allocate(4);
-            buffer.put((byte) POSPrinterConst.PTR_S_RECEIPT);
-            buffer.put((byte) brightness); // brightness
-            buffer.put((byte) 0x00); // Reserve
-            buffer.put((byte) 0x00); // Reserve
+    @Override
+    public void dataOccurred(DataEvent dataEvent) {
 
-            posPrinter.setBitmap(code, buffer.getInt(0), path, width, -1);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean printNVImage(int code) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            String nvCode = EscapeSequence.ESCAPE_CHARACTERS + String.format("%dB", code);
-
-            posPrinter.printNormal(POSPrinterConst.PTR_S_RECEIPT, nvCode);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean setCharacterSet(int cs) {
-        try {
-            posPrinter.setCharacterSet(cs);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public int getCharacterSet() {
-        int cs = -1;
-        try {
-            cs = posPrinter.getCharacterSet();
-        } catch (JposException e) {
-            e.printStackTrace();
-        }
-
-        return cs;
-    }
-
-    public boolean setFarsiOption(int opt) {
-        try {
-            posPrinter.setOptReorderForFarsi(opt);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public String posPrinterCheckHealth() {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return null;
-            }
-
-            posPrinter.checkHealth(JposConst.JPOS_CH_INTERNAL);
-            posPrinter.checkHealth(JposConst.JPOS_CH_EXTERNAL);
-            return posPrinter.getCheckHealthText();
-        } catch (JposException e) {
-            e.printStackTrace();
-        }
-
-        return null;
-    }
-
-    public String getPosPrinterInfo() {
-        String info;
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return null;
-            }
-
-            info = "deviceServiceDescription: " + posPrinter.getDeviceServiceDescription()
-                    + "\ndeviceServiceVersion: " + posPrinter.getDeviceServiceVersion()
-                    + "\nphysicalDeviceDescription: " + posPrinter.getPhysicalDeviceDescription()
-                    + "\nphysicalDeviceName: " + posPrinter.getPhysicalDeviceName()
-                    + "\npowerState: " + getPowerStateString(posPrinter.getPowerState())
-                    + "\ncapRecNearEndSensor: " + posPrinter.getCapRecNearEndSensor()
-                    + "\nRecPapercut: " + posPrinter.getCapRecPapercut()
-                    + "\ncapRecMarkFeed: " + getMarkFeedString(posPrinter.getCapRecMarkFeed())
-                    + "\ncharacterSet: " + posPrinter.getCharacterSet()
-                    + "\ncharacterSetList: " + posPrinter.getCharacterSetList()
-                    + "\nfontTypefaceList: " + posPrinter.getFontTypefaceList()
-                    + "\nrecLineChars: " + posPrinter.getRecLineChars()
-                    + "\nrecLineCharsList: " + posPrinter.getRecLineCharsList()
-                    + "\nrecLineSpacing: " + posPrinter.getRecLineSpacing()
-                    + "\nrecLineWidth: " + posPrinter.getRecLineWidth();
-
-            return info;
-        } catch (JposException e) {
-            e.printStackTrace();
-        }
-
-        return null;
-    }
-
-    public boolean updateFirmware(String path) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.updateFirmware(path);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean displayString(String data) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.displayString(data);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean displayStringAtLine(String data, int line) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.displayStringAtLine(line, data);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean displayClearScreen() {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.clearScreen();
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean displayStoreImage(String path, int width, int height, int imageNumber) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.storeImageFile(path, width, height, imageNumber);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean displayStoreImage(Bitmap bitmap, int width, int height, int imageNumber) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.storeImage(bitmap, width, height, imageNumber);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean displayImage(int imageNumber, int xPos, int yPos) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.displayImage(imageNumber, xPos, yPos);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public boolean displayClearImage(boolean isAll, int imageNumber) {
-        try {
-            if (!posPrinter.getDeviceEnabled()) {
-                return false;
-            }
-
-            posPrinter.clearImage(isAll, imageNumber);
-        } catch (JposException e) {
-            e.printStackTrace();
-
-            return false;
-        }
-
-        return true;
-    }
-
-    public byte[] StringToHex(String strScr) {
-        byte[] src = strScr.getBytes();
-        byte[] dst = null;
-        int nLength = src.length;
-
-        dst = ConvertHexaToInteger(src, nLength);
-
-        return dst;
-    }
-
-    private byte[] ConvertHexaToInteger(byte[] szHexa, int nSize) {
-        ByteBuffer hex = ByteBuffer.allocate(nSize / 2);
-        int ch1, ch2, bData;
-        int j = 0;
-
-        while (j < nSize) {
-            ch1 = ConvertINT(szHexa[j]);
-            bData = (byte) (ch1 << 4);
-            j++;
-            ch2 = ConvertINT(szHexa[j]);
-            bData += (ch2 & 0x0f);
-            j++;
-            hex.put((byte) bData);
-        }
-
-        return hex.array();
-    }
-
-    private byte ConvertINT(int h) {
-        int n = h < 0 ? h + 255 : h;
-        return (byte) ((n > '9') ? 10 + (n - 'A') : (n - '0'));
     }
 
     @Override
@@ -954,124 +598,4 @@ public class BixolonPrinter implements ErrorListener, OutputCompleteListener, St
     public void statusUpdateOccurred(StatusUpdateEvent statusUpdateEvent) {
 
     }
-
-    @Override
-    public void dataOccurred(DataEvent dataEvent) {
-
-    }
-
-    private String getERMessage(int status) {
-        switch (status) {
-            case POSPrinterConst.JPOS_EPTR_COVER_OPEN:
-                return "Cover open";
-
-            case POSPrinterConst.JPOS_EPTR_REC_EMPTY:
-                return "Paper empty";
-
-            case POSPrinterConst.JPOS_EPTR_OFF_LINE:
-                return "Printer Off-line";
-
-            case JposConst.JPOS_SUE_POWER_OFF_OFFLINE:
-                return "Power off";
-
-            default:
-                return "Unknown";
-        }
-    }
-
-    private String getSUEMessage(int status) {
-        switch (status) {
-            case JposConst.JPOS_SUE_POWER_ONLINE:
-                return "StatusUpdate : Power on";
-
-            case JposConst.JPOS_SUE_POWER_OFF_OFFLINE:
-                printerClose();
-                return "StatusUpdate : Power off";
-
-            case POSPrinterConst.PTR_SUE_COVER_OPEN:
-                return "StatusUpdate : Cover Open";
-
-            case POSPrinterConst.PTR_SUE_COVER_OK:
-                return "StatusUpdate : Cover OK";
-
-            case POSPrinterConst.PTR_SUE_BAT_LOW:
-                return "StatusUpdate : Battery-Low";
-
-            case POSPrinterConst.PTR_SUE_BAT_OK:
-                return "StatusUpdate : Battery-OK";
-
-            case POSPrinterConst.PTR_SUE_REC_EMPTY:
-                return "StatusUpdate : Receipt Paper Empty";
-
-            case POSPrinterConst.PTR_SUE_REC_NEAREMPTY:
-                return "StatusUpdate : Receipt Paper Near Empty";
-
-            case POSPrinterConst.PTR_SUE_REC_PAPEROK:
-                return "StatusUpdate : Receipt Paper OK";
-
-            case POSPrinterConst.PTR_SUE_IDLE:
-                return "StatusUpdate : Printer Idle";
-
-            case POSPrinterConst.PTR_SUE_OFF_LINE:
-                return "StatusUpdate : Printer off line";
-
-            case POSPrinterConst.PTR_SUE_ON_LINE:
-                return "StatusUpdate : Printer on line";
-
-            default:
-                return "StatusUpdate : Unknown";
-        }
-    }
-
-    private String getBatterStatusString(int status) {
-        switch (status) {
-            case 0x30:
-                return "BatterStatus : Full";
-
-            case 0x31:
-                return "BatterStatus : High";
-
-            case 0x32:
-                return "BatterStatus : Middle";
-
-            case 0x33:
-                return "BatterStatus : Low";
-
-            default:
-                return "BatterStatus : Unknwon";
-        }
-    }
-
-    private String getPowerStateString(int powerState) {
-        switch (powerState) {
-            case JposConst.JPOS_PS_OFF_OFFLINE:
-                return "OFFLINE";
-
-            case JposConst.JPOS_PS_ONLINE:
-                return "ONLINE";
-
-            default:
-                return "Unknown";
-        }
-    }
-
-    private String getMarkFeedString(int markFeed) {
-        switch (markFeed) {
-            case POSPrinterConst.PTR_MF_TO_TAKEUP:
-                return "TAKEUP";
-
-            case POSPrinterConst.PTR_MF_TO_CUTTER:
-                return "CUTTER";
-
-            case POSPrinterConst.PTR_MF_TO_CURRENT_TOF:
-                return "CURRENT TOF";
-
-            case POSPrinterConst.PTR_MF_TO_NEXT_TOF:
-                return "NEXT TOF";
-
-            default:
-                return "Not support";
-        }
-    }
-
 }

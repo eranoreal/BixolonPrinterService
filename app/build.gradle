@@ -1,27 +1,27 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 30
+    compileSdkVersion 33
     defaultConfig {
         applicationId "com.bixolon.printer"
-        minSdkVersion 17
-        targetSdkVersion 30
-        versionCode 3
-        versionName '3.12'
-
+        minSdkVersion 26
+        targetSdkVersion 33
+        versionCode 4
+        versionName '4.9'
+        multiDexEnabled true
     }
-    buildToolsVersion = '29.0.2'
+    buildToolsVersion = '33.0.0'
 
     signingConfigs {
         debug {
-            storeFile file('D:\\Documents\\Other\\WoosimPrinterService\\WoosimBTPrint\\techmeister.keystore')
+            storeFile file('E:\\Documents\\Other\\WoosimPrinterService\\WoosimBTPrint\\techmeister.keystore')
             storePassword "01e1cd"
             keyAlias "meister"
             keyPassword "01e1cd"
         }
 
         myConfig {
-            storeFile file("D:\\Documents\\Other\\WoosimPrinterService\\WoosimBTPrint\\techmeister.keystore")
+            storeFile file("E:\\Documents\\Other\\WoosimPrinterService\\WoosimBTPrint\\techmeister.keystore")
             storePassword "01e1cd"
             keyAlias "meister"
             keyPassword "01e1cd"
@@ -38,23 +38,27 @@ android {
             signingConfig signingConfigs.myConfig
         }
     }
+    namespace 'com.bixolon.printer'
 }
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    androidTestImplementation('androidx.test.espresso:espresso-core:3.1.0', {
+    implementation 'androidx.work:work-gcm:2.8.1'
+    implementation 'androidx.work:work-runtime:2.8.1'
+    implementation 'com.google.firebase:firebase-crashlytics-buildtools:2.9.5'
+    androidTestImplementation('androidx.test.espresso:espresso-core:3.4.0', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
 
 
-    implementation 'androidx.appcompat:appcompat:1.0.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'com.google.android.material:material:1.0.0'
+    implementation 'com.google.android.material:material:1.9.0'
 
-    testImplementation 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.13.2'
 
     implementation files('libs/bixolon_printer.jar')
-    implementation files('libs/libcommon_V1.1.1.jar')
+    implementation files('libs/libcommon_V1.2.0.jar')
 
-    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'com.google.code.gson:gson:2.8.9'
 }

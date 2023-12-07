@@ -4,8 +4,8 @@ public final class EscapeSequence {
 
     public static String ESCAPE_CHARACTERS = new String(new byte[]{0x1b, 0x7c});
 
-
     static String getString(int selectedPosition) {
+
         switch (selectedPosition) {
             case 0:    // Normal
                 return ESCAPE_CHARACTERS + "N";

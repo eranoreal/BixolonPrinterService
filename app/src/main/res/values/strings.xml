@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">Bixolon Printer Service</string>
-
+    <string name="packageName">com.bixolon.printer</string>
+    <string name="bixolonServiceRunning">Bixolon Printer Service is running.</string>
+    <string name="printerPrinting">Printer still printing, please wait.</string>
+    <string name="printerNotFound">Printer not found.</string>
+    <string name="bxl_version">version 5.0.0</string>
+    <string name="sdk_version">Powered by Bixolon SDK version 2.21</string>
+    <string name="company_name">Developed by Techmeister IT Solutions</string>
 </resources>

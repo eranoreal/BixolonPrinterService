@@ -1,20 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.bixolon.printer"
-    android:versionCode="3"
-    android:versionName="3.12.0">
-
+    xmlns:tools="http://schemas.android.com/tools"
+    android:versionCode="5"
+    android:versionName="5.0.0">
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.BLUETOOTH"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
 
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED"
+        tools:ignore="ProtectedPermissions" />
+    <permission android:name="com.bixolon.printer.PermissionFull" android:protectionLevel="normal"/>
 
     <application
         android:requestLegacyExternalStorage="true"
@@ -25,6 +34,17 @@
         android:roundIcon="@drawable/printer"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+
+        <provider
+            android:name="com.bixolon.printer.BXLContentProvider"
+            android:authorities="com.bixolon.printer.BXLContentProvider"
+            android:readPermission="com.bixolon.printer.PermissionFull"
+            android:writePermission="com.bixolon.printer.PermissionFull"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="true">
+        </provider>
+
         <receiver
             android:name="com.bixolon.printer.BootDeviceReceiver"
             android:enabled="true"
@@ -34,15 +54,10 @@
             </intent-filter>
         </receiver>
 
-        <service
-            android:name="com.bixolon.printer.BXLPrintService"
-            android:enabled="true"
-            android:exported="true">
-        </service>
-
         <activity
             android:name="com.bixolon.printer.MainActivity"
-            android:windowSoftInputMode="stateHidden">
+            android:windowSoftInputMode="stateHidden"
+            android:exported="true">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
